@@ -4,7 +4,12 @@
     "backend": {
       "root": "backend",
       "runtime": "python",
-      "entrypoint": "app/main.py"
+      "entrypoint": "app/main.py",
+      "functions": {
+        "app/main.py": {
+          "excludeFiles": "{data/raw/**,data/processed/**,app/ml/**,test_*.py,create_dataset.py,train_models.py}"
+        }
+      }
     },
     "frontend": {
       "root": "frontend",

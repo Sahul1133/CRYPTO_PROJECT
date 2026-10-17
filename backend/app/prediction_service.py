@@ -2,7 +2,6 @@ import os
 import numpy as np
 import pandas as pd
 
-from sklearn.preprocessing import MinMaxScaler
 from app.services.binance_service import get_historical_data
 
 SEQUENCE_LENGTH = 60
@@ -45,6 +44,8 @@ def predict_next_price(symbol, live_price=None):
     
     if tf_available and model_exists and not use_mock and df is not None:
         try:
+            from sklearn.preprocessing import MinMaxScaler
+
             close_prices = df["close"].values.reshape(-1, 1)
             scaler = MinMaxScaler(feature_range=(0, 1))
             scaled_data = scaler.fit_transform(close_prices)

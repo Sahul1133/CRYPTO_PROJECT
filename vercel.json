@@ -3,7 +3,8 @@
   "services": {
     "backend": {
       "root": "backend",
-      "runtime": "python"
+      "runtime": "python",
+      "entrypoint": "app/main.py"
     },
     "frontend": {
       "root": "frontend",

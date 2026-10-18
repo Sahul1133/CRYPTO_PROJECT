@@ -7,9 +7,18 @@ interface SentimentMeterProps {
   neutral: number;
   negative: number;
   overallScore: number;
+  currentPrice?: number;
+  symbol?: string;
 }
 
-export function SentimentMeter({ positive, neutral, negative, overallScore }: SentimentMeterProps) {
+export function SentimentMeter({
+  positive = 50,
+  neutral = 35,
+  negative = 15,
+  overallScore = 65,
+  currentPrice,
+  symbol = 'BTCUSDT'
+}: SentimentMeterProps) {
   const getSentimentColor = (score: number) => {
     if (score >= 60) return 'text-green-500';
     if (score >= 40) return 'text-yellow-500';
@@ -23,34 +32,44 @@ export function SentimentMeter({ positive, neutral, negative, overallScore }: Se
   };
 
   const sentimentData = [
-    { name: 'Positive', score: positive, impact: '+2.3%', color: '#22c55e' },
+    { name: 'Positive', score: positive, impact: `+${((positive / 100) * 4.2).toFixed(1)}%`, color: '#22c55e' },
     { name: 'Neutral', score: neutral, impact: '+0.1%', color: '#eab308' },
-    { name: 'Negative', score: negative, impact: '-1.8%', color: '#ef4444' },
+    { name: 'Negative', score: negative, impact: `-${((negative / 100) * 3.8).toFixed(1)}%`, color: '#ef4444' },
   ];
 
+  // Dynamically generate 24h sentiment trend correlated with the live price
+  const basePrice = currentPrice && currentPrice > 0 ? currentPrice : 81000;
   const sentimentTrendData = [
-    { time: '00:00', sentiment: 45, price: 68000 },
-    { time: '04:00', sentiment: 52, price: 68200 },
-    { time: '08:00', sentiment: 58, price: 68350 },
-    { time: '12:00', sentiment: 62, price: 68420 },
-    { time: '16:00', sentiment: 65, price: 68550 },
-    { time: '20:00', sentiment: 62, price: 68500 },
-    { time: '24:00', sentiment: 68, price: 68680 },
+    { time: '00:00', sentiment: Math.max(30, overallScore - 12), price: basePrice * 0.988 },
+    { time: '04:00', sentiment: Math.max(35, overallScore - 7), price: basePrice * 0.992 },
+    { time: '08:00', sentiment: Math.max(40, overallScore - 3), price: basePrice * 0.996 },
+    { time: '12:00', sentiment: overallScore, price: basePrice },
+    { time: '16:00', sentiment: Math.min(95, overallScore + 4), price: basePrice * 1.004 },
+    { time: '20:00', sentiment: Math.min(95, overallScore + 2), price: basePrice * 1.002 },
+    { time: '24:00', sentiment: Math.min(95, overallScore + 5), price: basePrice * 1.006 },
   ];
+
+  const formatPrice = (val: number) => {
+    if (val < 0.01) return `$${val.toFixed(6)}`;
+    if (val < 1) return `$${val.toFixed(4)}`;
+    return `$${val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const coinName = symbol.replace('USDT', '');
 
   return (
     <div className="space-y-6">
-      <div className="p-6 rounded-xl border border-border bg-card backdrop-blur-sm">
-        <h3 className="mb-6">Market Sentiment Analysis</h3>
+      <div className="p-6 rounded-2xl border border-border/60 bg-card/60 backdrop-blur-md shadow-xl">
+        <h3 className="text-xl font-bold mb-4 text-foreground">Market Sentiment Matrix</h3>
 
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-muted-foreground">Overall Sentiment Score</span>
-            <span className={`text-2xl ${getSentimentColor(overallScore)}`}>
-              {overallScore}
+            <span className="text-sm text-muted-foreground">Dynamic Sentiment Index</span>
+            <span className={`text-3xl font-extrabold ${getSentimentColor(overallScore)}`}>
+              {overallScore}/100
             </span>
           </div>
-          <div className="relative h-3 bg-muted rounded-full overflow-hidden">
+          <div className="relative h-3 bg-muted/60 rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: `${overallScore}%` }}
@@ -58,7 +77,7 @@ export function SentimentMeter({ positive, neutral, negative, overallScore }: Se
               className={`absolute h-full bg-gradient-to-r ${getSentimentBg(overallScore)}`}
             />
             <div
-              className="absolute h-full w-1 bg-foreground/50"
+              className="absolute h-full w-1.5 bg-foreground/70 rounded-full"
               style={{ left: `${overallScore}%` }}
             />
           </div>
@@ -68,10 +87,10 @@ export function SentimentMeter({ positive, neutral, negative, overallScore }: Se
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Smile className="h-5 w-5 text-green-500" />
-              <span className="text-sm text-muted-foreground">Positive</span>
+              <span className="text-sm font-medium text-muted-foreground">Positive</span>
             </div>
             <div className="flex items-center gap-3 flex-1 ml-4">
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+              <div className="flex-1 h-2 bg-muted/60 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${positive}%` }}
@@ -79,17 +98,17 @@ export function SentimentMeter({ positive, neutral, negative, overallScore }: Se
                   className="h-full bg-green-500 rounded-full"
                 />
               </div>
-              <span className="text-sm text-foreground w-12 text-right">{positive}%</span>
+              <span className="text-sm font-bold text-foreground w-12 text-right">{positive}%</span>
             </div>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Meh className="h-5 w-5 text-yellow-500" />
-              <span className="text-sm text-muted-foreground">Neutral</span>
+              <span className="text-sm font-medium text-muted-foreground">Neutral</span>
             </div>
             <div className="flex items-center gap-3 flex-1 ml-4">
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+              <div className="flex-1 h-2 bg-muted/60 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${neutral}%` }}
@@ -97,17 +116,17 @@ export function SentimentMeter({ positive, neutral, negative, overallScore }: Se
                   className="h-full bg-yellow-500 rounded-full"
                 />
               </div>
-              <span className="text-sm text-foreground w-12 text-right">{neutral}%</span>
+              <span className="text-sm font-bold text-foreground w-12 text-right">{neutral}%</span>
             </div>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Frown className="h-5 w-5 text-red-500" />
-              <span className="text-sm text-muted-foreground">Negative</span>
+              <span className="text-sm font-medium text-muted-foreground">Negative</span>
             </div>
             <div className="flex items-center gap-3 flex-1 ml-4">
-              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+              <div className="flex-1 h-2 bg-muted/60 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${negative}%` }}
@@ -115,47 +134,41 @@ export function SentimentMeter({ positive, neutral, negative, overallScore }: Se
                   className="h-full bg-red-500 rounded-full"
                 />
               </div>
-              <span className="text-sm text-foreground w-12 text-right">{negative}%</span>
+              <span className="text-sm font-bold text-foreground w-12 text-right">{negative}%</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="p-6 rounded-xl border border-border bg-card backdrop-blur-sm">
-        <h4 className="mb-2">Sentiment Score Distribution & Price Impact</h4>
-        <p className="text-sm text-muted-foreground mb-6">Correlation between sentiment categories and predicted price movement</p>
-        <ResponsiveContainer width="100%" height={300}>
+      <div className="p-6 rounded-2xl border border-border/60 bg-card/60 backdrop-blur-md shadow-xl">
+        <h4 className="text-base font-semibold mb-1 text-foreground">Score Distribution & Projected Impact</h4>
+        <p className="text-xs text-muted-foreground mb-4">Correlation between news sentiment breakdown and price momentum</p>
+        <ResponsiveContainer width="100%" height={220}>
           <BarChart data={sentimentData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.2} />
             <XAxis
               dataKey="name"
-              stroke="#666"
+              stroke="#888"
               style={{ fontSize: '12px' }}
             />
             <YAxis
-              stroke="#666"
+              stroke="#888"
               style={{ fontSize: '12px' }}
-              label={{ value: 'Score (%)', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
+              label={{ value: 'Score (%)', angle: -90, position: 'insideLeft', style: { fill: '#888' } }}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#1a1a1a',
-                border: '1px solid #333',
+                backgroundColor: 'rgba(20, 24, 39, 0.95)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '8px',
                 color: '#fff'
               }}
-              formatter={(value, name, props) => {
-                if (name === 'score') {
-                  return [`${value}%`, 'Score'];
-                }
-                return [value, name];
-              }}
-              labelFormatter={(label) => {
-                const item = sentimentData.find(d => d.name === label);
-                return `${label} - Impact: ${item?.impact}`;
-              }}
+              formatter={(value, name) => [
+                name === 'score' ? `${value}%` : value,
+                name === 'score' ? 'Distribution' : name
+              ]}
             />
-            <Bar dataKey="score" radius={[8, 8, 0, 0]}>
+            <Bar dataKey="score" radius={[6, 6, 0, 0]}>
               {sentimentData.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={entry.color} />
               ))}
@@ -163,55 +176,55 @@ export function SentimentMeter({ positive, neutral, negative, overallScore }: Se
           </BarChart>
         </ResponsiveContainer>
 
-        <div className="mt-4 grid grid-cols-3 gap-4">
+        <div className="mt-4 grid grid-cols-3 gap-3">
           {sentimentData.map((item) => (
-            <div key={item.name} className="text-center p-3 rounded-lg bg-muted/50">
-              <p className="text-sm text-muted-foreground">{item.name}</p>
-              <p className="text-lg" style={{ color: item.color }}>{item.impact}</p>
-              <p className="text-xs text-muted-foreground">Price Impact</p>
+            <div key={item.name} className="text-center p-2.5 rounded-xl bg-muted/30 border border-border/30">
+              <p className="text-xs text-muted-foreground">{item.name}</p>
+              <p className="text-base font-bold font-mono" style={{ color: item.color }}>{item.impact}</p>
+              <p className="text-[10px] text-muted-foreground">Impact</p>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="p-6 rounded-xl border border-border bg-card backdrop-blur-sm">
-        <h4 className="mb-2">24h Sentiment Trend vs Price Movement</h4>
-        <p className="text-sm text-muted-foreground mb-6">Real-time correlation between sentiment score and market price</p>
-        <ResponsiveContainer width="100%" height={300}>
+      <div className="p-6 rounded-2xl border border-border/60 bg-card/60 backdrop-blur-md shadow-xl">
+        <h4 className="text-base font-semibold mb-1 text-foreground">24h Sentiment Trend vs {coinName} Price</h4>
+        <p className="text-xs text-muted-foreground mb-4">Real-time correlation between social sentiment and {coinName} market value</p>
+        <ResponsiveContainer width="100%" height={240}>
           <LineChart data={sentimentTrendData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#333" opacity={0.2} />
             <XAxis
               dataKey="time"
-              stroke="#666"
+              stroke="#888"
               style={{ fontSize: '12px' }}
             />
             <YAxis
               yAxisId="left"
-              stroke="#666"
+              stroke="#888"
               style={{ fontSize: '12px' }}
-              label={{ value: 'Sentiment', angle: -90, position: 'insideLeft', style: { fill: '#666' } }}
+              domain={[0, 100]}
+              label={{ value: 'Sentiment', angle: -90, position: 'insideLeft', style: { fill: '#888' } }}
             />
             <YAxis
               yAxisId="right"
               orientation="right"
-              stroke="#666"
+              stroke="#888"
               style={{ fontSize: '12px' }}
-              tickFormatter={(value) => `$${(value / 1000).toFixed(1)}k`}
-              label={{ value: 'Price', angle: 90, position: 'insideRight', style: { fill: '#666' } }}
+              tickFormatter={(value) => formatPrice(value)}
+              domain={['auto', 'auto']}
+              width={75}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#1a1a1a',
-                border: '1px solid #333',
+                backgroundColor: 'rgba(20, 24, 39, 0.95)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '8px',
                 color: '#fff'
               }}
-              formatter={(value: number, name: string) => {
-                if (name === 'Sentiment Score') {
-                  return [value, name];
-                }
-                return [`$${value.toLocaleString()}`, name];
-              }}
+              formatter={(value: any, name: string) => [
+                name === 'Sentiment Score' ? `${value}/100` : formatPrice(Number(value)),
+                name
+              ]}
             />
             <Legend />
             <Line
@@ -220,7 +233,7 @@ export function SentimentMeter({ positive, neutral, negative, overallScore }: Se
               dataKey="sentiment"
               stroke="#a855f7"
               strokeWidth={2}
-              dot={{ fill: '#a855f7', r: 4 }}
+              dot={{ fill: '#a855f7', r: 3 }}
               name="Sentiment Score"
             />
             <Line
@@ -229,8 +242,8 @@ export function SentimentMeter({ positive, neutral, negative, overallScore }: Se
               dataKey="price"
               stroke="#3b82f6"
               strokeWidth={2}
-              dot={{ fill: '#3b82f6', r: 4 }}
-              name="BTC Price"
+              dot={{ fill: '#3b82f6', r: 3 }}
+              name={`${coinName} Price`}
             />
           </LineChart>
         </ResponsiveContainer>

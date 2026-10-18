@@ -3,8 +3,6 @@ import requests
 import pandas as pd
 from binance.client import Client
 
-client = Client()
-
 # In-memory cache for tickers and pairs to prevent rate-limiting and timeouts
 _cache = {
     "all_tickers": None,
@@ -16,56 +14,75 @@ _cache = {
     "klines": {}
 }
 
-CACHE_TTL = 20  # seconds
+CACHE_TTL = 15  # seconds
+
+# List of endpoints: data-api.binance.vision is unblocked globally on AWS/Vercel
+TICKER_24HR_URLS = [
+    "https://data-api.binance.vision/api/v3/ticker/24hr",
+    "https://api.binance.us/api/v3/ticker/24hr",
+    "https://api1.binance.com/api/v3/ticker/24hr",
+    "https://api.binance.com/api/v3/ticker/24hr"
+]
+
+KLINES_URLS = [
+    "https://data-api.binance.vision/api/v3/klines",
+    "https://api.binance.us/api/v3/klines",
+    "https://api1.binance.com/api/v3/klines",
+    "https://api.binance.com/api/v3/klines"
+]
+
+PRICE_URLS = [
+    "https://data-api.binance.vision/api/v3/ticker/price",
+    "https://api.binance.us/api/v3/ticker/price",
+    "https://api1.binance.com/api/v3/ticker/price",
+    "https://api.binance.com/api/v3/ticker/price"
+]
 
 def get_all_tickers():
     now = time.time()
     if _cache["all_tickers"] and (now - _cache["all_tickers_time"] < CACHE_TTL):
         return _cache["all_tickers"]
 
-    try:
-        res = requests.get("https://api.binance.com/api/v3/ticker/price", timeout=5)
-        if res.status_code == 200:
-            tickers = res.json()
-            ticker_dict = {t['symbol']: float(t['price']) for t in tickers}
-            _cache["all_tickers"] = ticker_dict
-            _cache["all_tickers_time"] = now
-            return ticker_dict
-    except Exception as e:
-        print(f"Direct ticker request failed, trying client: {e}")
+    for url in PRICE_URLS:
+        try:
+            res = requests.get(url, timeout=4)
+            if res.status_code == 200:
+                tickers = res.json()
+                ticker_dict = {t['symbol']: float(t['price']) for t in tickers}
+                _cache["all_tickers"] = ticker_dict
+                _cache["all_tickers_time"] = now
+                return ticker_dict
+        except Exception as e:
+            continue
 
-    try:
-        tickers = client.get_all_tickers()
-        ticker_dict = {t['symbol']: float(t['price']) for t in tickers}
-        _cache["all_tickers"] = ticker_dict
-        _cache["all_tickers_time"] = now
-        return ticker_dict
-    except Exception as e:
-        print(f"Error fetching tickers: {e}")
-        return _cache["all_tickers"] or {}
+    return _cache["all_tickers"] or {}
 
 def get_top_usdt_tickers(limit=100):
     now = time.time()
     if _cache["top_tickers"] and (now - _cache["top_tickers_time"] < CACHE_TTL):
         return _cache["top_tickers"][:limit]
 
-    try:
-        res = requests.get("https://api.binance.com/api/v3/ticker/24hr", timeout=6)
-        if res.status_code == 200:
-            data = res.json()
-            excluded_suffixes = ('UPUSDT', 'DOWNUSDT', 'BULLUSDT', 'BEARUSDT')
-            usdt_tickers = [
-                d for d in data
-                if d['symbol'].endswith('USDT')
-                and not any(d['symbol'].endswith(ex) for ex in excluded_suffixes)
-                and float(d.get('quoteVolume', 0)) > 50000
-            ]
-            usdt_tickers.sort(key=lambda x: float(x.get('quoteVolume', 0)), reverse=True)
-            _cache["top_tickers"] = usdt_tickers
-            _cache["top_tickers_time"] = now
-            return usdt_tickers[:limit]
-    except Exception as e:
-        print(f"Error fetching 24hr tickers: {e}")
+    excluded_suffixes = ('UPUSDT', 'DOWNUSDT', 'BULLUSDT', 'BEARUSDT')
+    
+    for url in TICKER_24HR_URLS:
+        try:
+            res = requests.get(url, timeout=4)
+            if res.status_code == 200:
+                data = res.json()
+                if isinstance(data, list) and len(data) > 0:
+                    usdt_tickers = [
+                        d for d in data
+                        if d.get('symbol', '').endswith('USDT')
+                        and not any(d['symbol'].endswith(ex) for ex in excluded_suffixes)
+                        and float(d.get('quoteVolume', 0)) > 50000
+                    ]
+                    usdt_tickers.sort(key=lambda x: float(x.get('quoteVolume', 0)), reverse=True)
+                    if usdt_tickers:
+                        _cache["top_tickers"] = usdt_tickers
+                        _cache["top_tickers_time"] = now
+                        return usdt_tickers[:limit]
+        except Exception as e:
+            continue
 
     return _cache["top_tickers"][:limit] if _cache["top_tickers"] else []
 
@@ -82,50 +99,29 @@ def get_usdt_pairs(limit=None):
         _cache["exchange_symbols_time"] = now
         return symbols[:limit] if limit else symbols
 
-    try:
-        exchange_info = client.get_exchange_info()
-        symbols = exchange_info['symbols']
-        usdt_pairs = [
-            s['symbol'] for s in symbols
-            if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING'
-        ]
-        _cache["exchange_symbols"] = usdt_pairs
-        _cache["exchange_symbols_time"] = now
-        return usdt_pairs[:limit] if limit else usdt_pairs
-    except Exception as e:
-        print(f"Error in get_usdt_pairs: {e}")
-        return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT"]
+    return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT"]
 
 def get_historical_data(symbol, interval="1h", start_str="5 days ago", limit=120):
-    cache_key = f"{symbol}_{interval}_{start_str}_{limit}"
+    cache_key = f"{symbol}_{interval}_{limit}"
     now = time.time()
     if cache_key in _cache["klines"]:
         cached_df, timestamp = _cache["klines"][cache_key]
-        if now - timestamp < 30:  # 30 second cache for klines
+        if now - timestamp < 20:  # 20 second cache for klines
             return cached_df.copy()
 
-    # Try fast direct REST API first (fastest, lightweight)
-    try:
-        params = {"symbol": symbol, "interval": interval, "limit": limit}
-        res = requests.get("https://api.binance.com/api/v3/klines", params=params, timeout=5)
-        if res.status_code == 200:
-            klines = res.json()
-            if klines and len(klines) > 0:
-                df = _format_klines(klines)
-                _cache["klines"][cache_key] = (df, now)
-                return df.copy()
-    except Exception as e:
-        print(f"Fast klines fetch error for {symbol}: {e}")
-
-    # Fallback to python-binance client
-    try:
-        klines = client.get_historical_klines(symbol, interval, start_str)
-        if klines and len(klines) > 0:
-            df = _format_klines(klines)
-            _cache["klines"][cache_key] = (df, now)
-            return df.copy()
-    except Exception as e:
-        print(f"Client klines fetch error for {symbol}: {e}")
+    params = {"symbol": symbol, "interval": interval, "limit": limit}
+    
+    for url in KLINES_URLS:
+        try:
+            res = requests.get(url, params=params, timeout=4)
+            if res.status_code == 200:
+                klines = res.json()
+                if klines and len(klines) > 0:
+                    df = _format_klines(klines)
+                    _cache["klines"][cache_key] = (df, now)
+                    return df.copy()
+        except Exception:
+            continue
 
     return pd.DataFrame()
 

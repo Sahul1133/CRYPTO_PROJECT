@@ -1,6 +1,11 @@
 venv/
+.venv/
+backend/venv/
 node_modules/
 .env
 __pycache__/
 dist/
 build/
+backend/data/raw/
+backend/data/processed/
+*.npy

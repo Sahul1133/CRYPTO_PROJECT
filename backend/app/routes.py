@@ -1,6 +1,5 @@
 import requests
 import feedparser
-import pandas as pd
 import numpy as np
 from fastapi import APIRouter, HTTPException, Query
 from app.prediction_service import predict_next_price, predict_batch

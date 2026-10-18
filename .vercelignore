@@ -1,0 +1,25 @@
+# Data & large datasets (excludes ~348MB of raw CSVs & npy arrays from Vercel Lambda function bundle)
+backend/data/**
+data/**
+**/*.csv
+**/*.npy
+**/*.h5
+
+# Virtual environments
+.venv/**
+backend/venv/**
+venv/**
+**/__pycache__/**
+*.pyc
+*.pyo
+*.pyd
+
+# Offline ML training scripts and tests
+backend/train_models.py
+backend/create_dataset.py
+backend/test_*.py
+backend/requirements-ml.txt
+backend/app/ml/**
+
+# Frontend node_modules (Vercel builds frontend in isolation)
+frontend/node_modules/**

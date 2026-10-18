@@ -7,7 +7,20 @@
     },
     "backend": {
       "root": "backend/",
-      "entrypoint": "main.py"
+      "entrypoint": "main.py",
+      "functions": {
+        "main.py": {
+          "excludeFiles": "{data/**,app/ml/**,test_*.py,create_dataset.py,train_models.py,requirements-ml.txt,**/*.csv,**/*.npy,**/*.h5}"
+        }
+      }
+    }
+  },
+  "functions": {
+    "api/**/*.py": {
+      "excludeFiles": "{backend/data/**,data/**,backend/app/ml/**,backend/test_*.py,backend/create_dataset.py,backend/train_models.py,**/*.csv,**/*.npy,**/*.h5}"
+    },
+    "backend/**/*.py": {
+      "excludeFiles": "{backend/data/**,data/**,app/ml/**,test_*.py,create_dataset.py,train_models.py,**/*.csv,**/*.npy,**/*.h5}"
     }
   },
   "rewrites": [

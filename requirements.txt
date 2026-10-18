@@ -5,4 +5,3 @@ numpy>=1.26.0
 pandas>=2.2.0
 python-binance>=1.0.19
 requests>=2.31.0
-scikit-learn>=1.4.0

@@ -14,6 +14,33 @@ _loaded_models = {}
 _tf_checked = False
 _tf_available = False
 
+try:
+    from sklearn.preprocessing import MinMaxScaler
+except (ImportError, ModuleNotFoundError):
+    class MinMaxScaler:  # type: ignore
+        """Pure NumPy MinMaxScaler to avoid heavy 300MB scipy/scikit-learn dependency on serverless runtimes."""
+        def __init__(self, feature_range=(0, 1)):
+            self.feature_range = feature_range
+            self.data_min_ = None
+            self.data_max_ = None
+
+        def fit_transform(self, X):
+            X = np.asarray(X, dtype=float)
+            self.data_min_ = np.nanmin(X, axis=0)
+            self.data_max_ = np.nanmax(X, axis=0)
+            data_range = self.data_max_ - self.data_min_
+            data_range[data_range == 0] = 1.0
+            scale = (self.feature_range[1] - self.feature_range[0]) / data_range
+            return (X - self.data_min_) * scale + self.feature_range[0]
+
+        def inverse_transform(self, X):
+            X = np.asarray(X, dtype=float)
+            data_range = self.data_max_ - self.data_min_
+            data_range[data_range == 0] = 1.0
+            scale = (self.feature_range[1] - self.feature_range[0]) / data_range
+            return (X - self.feature_range[0]) / scale + self.data_min_
+
+
 def check_tensorflow():
     global _tf_checked, _tf_available
     if not _tf_checked:
@@ -218,7 +245,6 @@ def predict_next_price(symbol, live_price=None, ticker_data=None):
     keras_model = get_keras_model(symbol)
     if keras_model is not None and df is not None and len(df) >= SEQUENCE_LENGTH:
         try:
-            from sklearn.preprocessing import MinMaxScaler
             close_prices = df["close"].values.reshape(-1, 1)
             scaler = MinMaxScaler(feature_range=(0, 1))
             scaled_data = scaler.fit_transform(close_prices)
